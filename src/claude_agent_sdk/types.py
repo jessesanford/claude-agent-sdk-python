@@ -29,7 +29,7 @@ class SystemPromptPreset(TypedDict):
 
     type: Literal["preset"]
     preset: Literal["claude_code"]
-    append: NotRequired[str]
+    append: NotRequired[str | list[str]]  # Support both single string and list of strings
 
 
 class ToolsPreset(TypedDict):

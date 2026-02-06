@@ -176,9 +176,16 @@ class SubprocessCLITransport(Transport):
                 self._options.system_prompt.get("type") == "preset"
                 and "append" in self._options.system_prompt
             ):
-                cmd.extend(
-                    ["--append-system-prompt", self._options.system_prompt["append"]]
-                )
+                append_value = self._options.system_prompt["append"]
+
+                # Support both single string (backward compat) and list of strings (new)
+                if isinstance(append_value, str):
+                    # Backward compatibility: single string
+                    cmd.extend(["--append-system-prompt", append_value])
+                elif isinstance(append_value, list):
+                    # NEW: multiple chunks - generate separate flag for each
+                    for chunk in append_value:
+                        cmd.extend(["--append-system-prompt", chunk])
 
         # Handle tools option (base set of tools)
         if self._options.tools is not None:
