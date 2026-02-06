@@ -30,6 +30,7 @@ class SystemPromptPreset(TypedDict):
     type: Literal["preset"]
     preset: Literal["claude_code"]
     append: NotRequired[str | list[str]]  # Support both single string and list of strings
+    append_file: NotRequired[str | Path]  # Path to file whose contents will be appended
 
 
 class ToolsPreset(TypedDict):

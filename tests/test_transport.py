@@ -108,6 +108,37 @@ class TestSubprocessCLITransport:
         assert "--append-system-prompt" in cmd
         assert "Be concise." in cmd
 
+    def test_build_command_with_system_prompt_preset_and_append_file(self):
+        """Test building CLI command with system prompt preset and append_file."""
+        import tempfile
+
+        # Create a temporary file with system prompt content
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
+            f.write("# TEST RULE: Be very concise in responses.")
+            temp_file = f.name
+
+        try:
+            transport = SubprocessCLITransport(
+                prompt="test",
+                options=make_options(
+                    system_prompt={
+                        "type": "preset",
+                        "preset": "claude_code",
+                        "append_file": temp_file,
+                    },
+                ),
+            )
+
+            cmd = transport._build_command()
+            assert "--system-prompt" not in cmd
+            assert "--append-system-prompt" not in cmd
+            assert "--append-system-prompt-file" in cmd
+            assert temp_file in cmd
+        finally:
+            import os
+
+            os.unlink(temp_file)
+
     def test_build_command_with_options(self):
         """Test building CLI command with options."""
         transport = SubprocessCLITransport(

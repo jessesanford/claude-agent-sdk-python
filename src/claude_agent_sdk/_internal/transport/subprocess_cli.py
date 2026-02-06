@@ -172,6 +172,7 @@ class SubprocessCLITransport(Transport):
         elif isinstance(self._options.system_prompt, str):
             cmd.extend(["--system-prompt", self._options.system_prompt])
         else:
+            # Handle append (inline text)
             if (
                 self._options.system_prompt.get("type") == "preset"
                 and "append" in self._options.system_prompt
@@ -186,6 +187,29 @@ class SubprocessCLITransport(Transport):
                     # NEW: multiple chunks - generate separate flag for each
                     for chunk in append_value:
                         cmd.extend(["--append-system-prompt", chunk])
+
+            # Handle append_file (file path)
+            if (
+                self._options.system_prompt.get("type") == "preset"
+                and "append_file" in self._options.system_prompt
+            ):
+                import os
+                from pathlib import Path
+
+                file_path = self._options.system_prompt["append_file"]
+
+                # Convert to string if Path object
+                if isinstance(file_path, Path):
+                    file_path = str(file_path)
+
+                # Verify file exists before passing to CLI
+                if not os.path.exists(file_path):
+                    raise FileNotFoundError(
+                        f"System prompt file not found: {file_path}"
+                    )
+
+                # Use --append-system-prompt-file flag
+                cmd.extend(["--append-system-prompt-file", file_path])
 
         # Handle tools option (base set of tools)
         if self._options.tools is not None:
