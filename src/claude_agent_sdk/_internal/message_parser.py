@@ -21,7 +21,7 @@ from ..types import (
 logger = logging.getLogger(__name__)
 
 
-def parse_message(data: dict[str, Any]) -> Message:
+def parse_message(data: dict[str, Any]) -> Message | None:
     """
     Parse message from CLI output into typed Message objects.
 
@@ -29,7 +29,7 @@ def parse_message(data: dict[str, Any]) -> Message:
         data: Raw message dictionary from CLI output
 
     Returns:
-        Parsed Message object
+        Parsed Message object, or None if message should be skipped (e.g., rate_limit_event)
 
     Raises:
         MessageParseError: If parsing fails or message type is unrecognized
@@ -175,6 +175,14 @@ def parse_message(data: dict[str, Any]) -> Message:
                 raise MessageParseError(
                     f"Missing required field in stream_event message: {e}", data
                 ) from e
+
+        case "rate_limit_event":
+            # Rate limit event from Claude Code CLI - log and skip
+            retry_after_ms = data.get("retry_after_ms", 0)
+            logger.debug(
+                f"Received rate_limit_event from CLI, retry_after_ms: {retry_after_ms}"
+            )
+            return None
 
         case _:
             raise MessageParseError(f"Unknown message type: {message_type}", data)

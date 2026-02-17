@@ -138,7 +138,9 @@ class InternalClient:
 
             # Yield parsed messages
             async for data in query.receive_messages():
-                yield parse_message(data)
+                message = parse_message(data)
+                if message is not None:
+                    yield message
 
         finally:
             await query.close()
