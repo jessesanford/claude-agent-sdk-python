@@ -1,5 +1,123 @@
 # Changelog
 
+## 0.1.47
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.70
+
+## 0.1.46
+
+### New Features
+
+- **Session history functions**: Added `list_sessions()` and `get_session_messages()` top-level functions for retrieving past session data (#622)
+- **MCP control methods**: Added `add_mcp_server()`, `remove_mcp_server()`, and typed `McpServerStatus` for runtime MCP server management (#620)
+- **Typed task messages**: Added `TaskStarted`, `TaskProgress`, and `TaskNotification` message subclasses for better type safety when handling task-related events (#621)
+- **ResultMessage stop_reason**: Added `stop_reason` field to `ResultMessage` for inspecting why a conversation turn ended (#619)
+- **Hook input enhancements**: Added `agent_id` and `agent_type` fields to tool-lifecycle hook inputs (`PreToolUseHookInput`, `PostToolUseHookInput`, `PostToolUseFailureHookInput`) (#628)
+
+### Bug Fixes
+
+- **String prompt MCP initialization**: Fixed an issue where passing a string prompt would close stdin before MCP server initialization completed, causing MCP servers to fail to register (#630)
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.69
+
+## 0.1.45
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.63
+
+## 0.1.44
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.59
+
+## 0.1.43
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.56
+
+## 0.1.42
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.55
+
+## 0.1.41
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.52
+
+## 0.1.40
+
+### Bug Fixes
+
+- **Unknown message type handling**: Fixed an issue where unrecognized CLI message types (e.g., `rate_limit_event`) would crash the session by raising `MessageParseError`. Unknown message types are now silently skipped, making the SDK forward-compatible with future CLI message types (#598)
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.51
+
+## 0.1.39
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.49
+
+## 0.1.38
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.47
+
+## 0.1.37
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.44
+
+## 0.1.36
+
+### New Features
+
+- **Thinking configuration**: Added `ThinkingConfig` types (`ThinkingConfigAdaptive`, `ThinkingConfigEnabled`, `ThinkingConfigDisabled`) and `thinking` field to `ClaudeAgentOptions` for fine-grained control over extended thinking behavior. The new `thinking` field takes precedence over the now-deprecated `max_thinking_tokens` field (#565)
+- **Effort option**: Added `effort` field to `ClaudeAgentOptions` supporting `"low"`, `"medium"`, `"high"`, and `"max"` values for controlling thinking depth (#565)
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.42
+
+## 0.1.35
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.39
+
+## 0.1.34
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.38
+- Updated CI workflows to use Claude Opus 4.6 model (#556)
+
+## 0.1.33
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.37
+
+## 0.1.32
+
+### Internal/Other Changes
+
+- Updated bundled Claude CLI to version 2.1.36
+
 ## 0.1.31
 
 ### New Features
