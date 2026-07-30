@@ -1,6 +1,7 @@
 """Query function for one-shot interactions with Claude Code."""
 
 import os
+from contextlib import aclosing
 from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any
 
@@ -120,7 +121,32 @@ async def query(
 
     client = InternalClient()
 
-    async for message in client.process_query(
-        prompt=prompt, options=options, transport=transport
-    ):
-        yield message
+    # aclosing() on the INNER generator is load-bearing, not defensive.
+    #
+    # When a caller exits this generator early (a `break`, or an exception
+    # raised out of its loop body), `query()`'s own frame unwinds and drops its
+    # only reference to `client.process_query(...)`. That inner generator is
+    # then garbage, and asyncio finalizes it via `loop._asyncgen_finalizer_hook`
+    # -> `create_task(agen.aclose())` -- in a NEW, FOREIGN task.
+    #
+    # Its `finally: await query.close()` (_internal/client.py) therefore runs in
+    # that foreign task and calls `Query.close()`, which does
+    # `self._tg.cancel_scope.cancel()`. But `_tg` was entered by
+    # `Query.start()` in the CALLER's task, so anyio delivers that cancellation
+    # to the caller -- cancelling whatever it happens to be awaiting, typically
+    # something completely unrelated. Worse, `__aexit__` from a foreign task
+    # raises `RuntimeError: Attempted to exit cancel scope in a different task`,
+    # which `Query.close()`'s cancel-only `suppress()` does NOT catch, so the
+    # scope is cancelled but never exited and anyio re-delivers the
+    # cancellation on every subsequent await, permanently.
+    #
+    # Closing the inner generator HERE keeps that teardown in the owning task.
+    # Receipts: three multi-hour SF3 E2E runs killed this way (2026-07-29/30) by
+    # a bare `CancelledError` at an unrelated subprocess spawn; a caller-side
+    # `aclosing(query(...))` alone does NOT prevent it -- it is precisely what
+    # orphans this generator.
+    async with aclosing(
+        client.process_query(prompt=prompt, options=options, transport=transport)
+    ) as inner:
+        async for message in inner:
+            yield message
