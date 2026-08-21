@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import anyio
 import pytest
 
+from claude_agent_sdk import ProcessError
 from claude_agent_sdk._internal.transport.subprocess_cli import SubprocessCLITransport
 from claude_agent_sdk.types import ClaudeAgentOptions
 
@@ -882,6 +883,85 @@ class TestSubprocessCLITransport:
         assert "--input-format" in cmd
         assert "stream-json" in cmd
         assert "--print" not in cmd
+
+    def test_read_messages_detects_error_max_turns_result(self):
+        """FINDING 3: A real CLI result message with subtype=error_max_turns,
+        followed by a non-zero exit code, must produce a ProcessError whose
+        stderr names the max-turns condition (not the generic fallback string).
+
+        Regression test for the wrong-field bug fixed in this commit: the
+        detection previously checked ``data.get("type") == "max_turns_reached"``,
+        a message type the CLI never emits. The real signal is a top-level
+        ``"result"`` message carrying ``"subtype": "error_max_turns"`` (see
+        message_parser.py's ``case "result"`` handling of ResultMessage).
+        """
+
+        async def _test():
+            transport = SubprocessCLITransport(prompt="test", options=make_options())
+
+            # Simulate a connected transport without spawning a real process.
+            transport._process = MagicMock()
+            transport._process.wait = AsyncMock(return_value=1)
+
+            async def fake_stdout():
+                yield (
+                    '{"type": "result", "subtype": "error_max_turns", '
+                    '"duration_ms": 12345, "duration_api_ms": 11000, '
+                    '"is_error": true, "num_turns": 15, '
+                    '"session_id": "sess-e2-1-7"}'
+                )
+
+            transport._stdout_stream = fake_stdout()
+
+            messages = []
+            with pytest.raises(ProcessError) as exc_info:
+                async for msg in transport.read_messages():
+                    messages.append(msg)
+
+            # The result message itself is still yielded to the caller.
+            assert len(messages) == 1
+            assert messages[0]["subtype"] == "error_max_turns"
+
+            # Detection flag flipped, and the ProcessError names max_turns
+            # instead of the uninformative generic fallback.
+            assert transport._saw_max_turns_reached is True
+            assert exc_info.value.stderr == (
+                "CLI reached max_turns limit before completing the task"
+            )
+            assert "Check stderr output for details" not in str(exc_info.value)
+
+        anyio.run(_test)
+
+    def test_read_messages_generic_crash_keeps_default_message(self):
+        """Control for FINDING 3: a genuine crash with no error_max_turns
+        result message must NOT be mislabeled as a max-turns condition — the
+        generic fallback message is preserved.
+        """
+
+        async def _test():
+            transport = SubprocessCLITransport(prompt="test", options=make_options())
+
+            transport._process = MagicMock()
+            transport._process.wait = AsyncMock(return_value=1)
+
+            async def fake_stdout():
+                # A normal system/init message, no result message at all —
+                # the process just crashes with no CLI-reported explanation.
+                yield '{"type": "system", "subtype": "init", "session_id": "sess-crash"}'
+
+            transport._stdout_stream = fake_stdout()
+
+            messages = []
+            with pytest.raises(ProcessError) as exc_info:
+                async for msg in transport.read_messages():
+                    messages.append(msg)
+
+            assert len(messages) == 1
+            assert transport._saw_max_turns_reached is False
+            assert exc_info.value.stderr == "Check stderr output for details"
+            assert "max_turns" not in str(exc_info.value).lower()
+
+        anyio.run(_test)
 
     def test_build_command_large_agents_work(self):
         """Test that large agent definitions work without size limits.
