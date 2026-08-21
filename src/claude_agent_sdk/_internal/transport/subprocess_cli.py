@@ -545,8 +545,8 @@ class SubprocessCLITransport(Transport):
                     try:
                         data = json.loads(json_buffer)
                         json_buffer = ""
-                        # Track if we see a max_turns_reached message for better error reporting
-                        if isinstance(data, dict) and data.get("type") == "max_turns_reached":
+                        # FINDING 3: Track if we see error_max_turns (correct signal is {"type":"result","subtype":"error_max_turns"})
+                        if isinstance(data, dict) and data.get("type") == "result" and data.get("subtype") == "error_max_turns":
                             self._saw_max_turns_reached = True
                         yield data
                     except json.JSONDecodeError:
