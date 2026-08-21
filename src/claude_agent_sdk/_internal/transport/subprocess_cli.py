@@ -54,6 +54,7 @@ class SubprocessCLITransport(Transport):
         self._stderr_task_group: anyio.abc.TaskGroup | None = None
         self._ready = False
         self._exit_error: Exception | None = None  # Track process exit errors
+        self._saw_max_turns_reached = False  # Track if max_turns_reached message was seen
         self._max_buffer_size = (
             options.max_buffer_size
             if options.max_buffer_size is not None
@@ -464,6 +465,7 @@ class SubprocessCLITransport(Transport):
         self._stdin_stream = None
         self._stderr_stream = None
         self._exit_error = None
+        self._saw_max_turns_reached = False
 
     async def write(self, data: str) -> None:
         """Write raw data to the transport."""
@@ -543,6 +545,9 @@ class SubprocessCLITransport(Transport):
                     try:
                         data = json.loads(json_buffer)
                         json_buffer = ""
+                        # Track if we see a max_turns_reached message for better error reporting
+                        if isinstance(data, dict) and data.get("type") == "max_turns_reached":
+                            self._saw_max_turns_reached = True
                         yield data
                     except json.JSONDecodeError:
                         # We are speculatively decoding the buffer until we get
@@ -564,10 +569,15 @@ class SubprocessCLITransport(Transport):
 
         # Use exit code for error detection
         if returncode is not None and returncode != 0:
+            # Use a more informative error message if max_turns_reached was detected
+            if self._saw_max_turns_reached:
+                stderr_msg = "CLI reached max_turns limit before completing the task"
+            else:
+                stderr_msg = "Check stderr output for details"
             self._exit_error = ProcessError(
                 f"Command failed with exit code {returncode}",
                 exit_code=returncode,
-                stderr="Check stderr output for details",
+                stderr=stderr_msg,
             )
             raise self._exit_error
 
